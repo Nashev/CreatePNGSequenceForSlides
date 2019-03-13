@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+    
+      var SlidesToWait = [];
+      var Environment;
+      
+      function MakePng(Index) {
+        google.script.run.withSuccessHandler(onSlideSuccess).withFailureHandler(onSlideFailure).withUserObject(Index).internalSavePNGs2_SaveSlide(
+          Index, Environment.PresentationName, Environment.PresentationID, Environment.Slides[Index], Environment.FolderName
+        );
+      }
+      
+      function onSuccess(Result) {
+        Environment = Result;
+        document.getElementById('output').innerHTML = s;
+        var s = 
+          'Слайды будут сохранены в папку <br />' + 
+          '<a href="' + Environment.URL + '" target="_blank">' + Environment.FolderName + '</a>.<br />' + 
+          'Всего их ' + Environment.Slides.length + ' шт<br />' + 
+          '<div id="Status">Осталось сохранить слайдов: ' + Environment.Slides.length + '.</div> <font size="1">';
+        document.getElementById('output').innerHTML = s;
+        for (var i = 0; i < Environment.Slides.length; i++) {
+          s = s + ' [<span id="slide' + i +'">_</span>]';
+          SlidesToWait.push(i)
+        }
+        s = s + '</font>';
+        document.getElementById('output').innerHTML = s;
+        // запускаем собственно сохранения
+        for (var i = 0; i < Environment.Slides.length; i++) {
+          MakePng(i)
+        }
+      }
+      
+      function onFailure(error) {
+        document.getElementById('output').innerHTML = error.message;
+      }
+      
+      function onSlideSuccess(Result) {
+        document.getElementById('slide' + Result).innerText = '+';
+        document.getElementById('slide' + Result).style="background-color: Lime;"
+        SlidesToWait.pop(Result);
+        if (SlidesToWait.length == 0) {
+          document.getElementById('Status').innerHTML = 'Всё готово.';
+        } else {
+          document.getElementById('Status').innerHTML = 'Осталось сохранить слайдов: ' + SlidesToWait.length + '.';
+        }
+      }
+
+      function sleep2(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+
+      async function Restart(Index) {
+        await sleep2(50*1000);
+        MakePng(Index);
+      }
+      
+      
+      function onSlideFailure(error, Result) {
+        var Msg = '' + error;
+        if (
+           (Msg.indexOf("Insufficient tokens for quota 'ExpensiveReadGroup' and limit 'USER-100s' of service 'slides.googleapis.com' for consumer") !== -1)
+            ||
+           (Msg.indexOf("DriveApp.") !== -1)
+        ) {
+          Restart(Result);
+        } else {
+          document.getElementById('slide' + Result).innerText = 'x';
+          document.getElementById('slide' + Result).style="background-color: red;"
+          SlidesToWait.pop(Result);
+          if (SlidesToWait.length == 0) {
+            document.getElementById('Status').innerHTML = 'Всё готово.';
+          } else {
+            document.getElementById('Status').innerHTML = 'Осталось сохранить ' + SlidesToWait.length + ' слайдов.';
+          }
+          document.getElementById('output').innerHTML = document.getElementById('output').innerHTML + '<br />Slide ' + Result + ': ' + error.message;
+        }
+      }
+
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).internalSavePNGs2_GetSlideList();
+      
+    </script>
+  </head>
+  <body>
+    <div id="output">Запускаем, подождите пожалуйста...</div>
+    <br/>
+    <br/>
+    <input type="button" value="Закрыть" onclick="google.script.host.close()" />
+  </body>
+</html>
+
+
