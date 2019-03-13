@@ -141,7 +141,7 @@ function internalSavePNGs2_SaveSlide(Index, PresentationName, PrID, SlID, FldNam
   Logger.log(d);
   var pngFile = d.createFile(UrlFetchApp.fetch(tb.contentUrl))
   Logger.log(pngFile);
-  pngFile.setName(PresentationName + '_page' + Index + '.png')
+  pngFile.setName(PresentationName + '_page' + ("000000000" + Index.toString()).slice(-5) + '.png')
   Logger.log('ok');
   return Index
 }
