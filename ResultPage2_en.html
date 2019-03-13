@@ -18,10 +18,10 @@
         Environment = Result;
         document.getElementById('output').innerHTML = s;
         var s = 
-          'Слайды будут сохранены в папку <br />' + 
+          'Slides will be stored at folder <br />' + 
           '<a href="' + Environment.URL + '" target="_blank">' + Environment.FolderName + '</a>.<br />' + 
-          'Всего их ' + Environment.Slides.length + ' шт<br />' + 
-          '<div id="Status">Осталось сохранить слайдов: ' + Environment.Slides.length + '.</div> <font size="1">';
+          'Total count: ' + Environment.Slides.length + ' slides<br />' + 
+          '<div id="Status">Left to save ' + Environment.Slides.length + ' slides.</div> <font size="1">';
         document.getElementById('output').innerHTML = s;
         for (var i = 0; i < Environment.Slides.length; i++) {
           s = s + ' [<span id="slide' + i +'">_</span>]';
@@ -44,9 +44,9 @@
         document.getElementById('slide' + Result).style="background-color: Lime;"
         SlidesToWait.pop(Result);
         if (SlidesToWait.length == 0) {
-          document.getElementById('Status').innerHTML = 'Всё готово.';
+          document.getElementById('Status').innerHTML = 'All done.';
         } else {
-          document.getElementById('Status').innerHTML = 'Осталось сохранить слайдов: ' + SlidesToWait.length + '.';
+          document.getElementById('Status').innerHTML = 'Left to save ' + SlidesToWait.length + ' slides.';
         }
       }
 
@@ -74,9 +74,9 @@
           document.getElementById('slide' + Result).style="background-color: red;"
           SlidesToWait.pop(Result);
           if (SlidesToWait.length == 0) {
-            document.getElementById('Status').innerHTML = 'Всё готово.';
+            document.getElementById('Status').innerHTML = 'All done.';
           } else {
-            document.getElementById('Status').innerHTML = 'Осталось сохранить ' + SlidesToWait.length + ' слайдов.';
+            document.getElementById('Status').innerHTML = 'Left to save ' + SlidesToWait.length + ' slides.';
           }
           document.getElementById('output').innerHTML = document.getElementById('output').innerHTML + '<br /><span class="error">Slide ' + Result + ': ' + error.message + '</span>';
         }
@@ -87,10 +87,10 @@
     </script>
   </head>
   <body>
-    <div id="output">Запускаем, подождите пожалуйста...</div>
+    <div id="output">Starting, please wait...</div>
     <br/>
     <br/>
-    <center><input type="button" value="Закрыть" onclick="google.script.host.close()" /></center>
+    <center><input type="button" value="Close" onclick="google.script.host.close()" /></center>
   </body>
 </html>
 
