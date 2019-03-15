@@ -19,7 +19,7 @@
         } else {
           s = s + 'запуски не производятся.<br />';
         }
-        s = s + 'Обрабатыватся: ' + SlidesToWait + '.<br />';
+        s = s + 'Обрабатывается: ' + SlidesToWait + '.<br />';
         s = s + 'В списке готовых: ' + SlidesCompleted.length + '.<br />';
         s = s + 'В списке с неизвестными ошибками: ' + SlidesWithErrors.length + '.';
         document.getElementById('Status').innerHTML = s;
@@ -50,13 +50,6 @@
         }
       }
 
-      async function Restart(SlideIndex) {
-        document.getElementById('slide' + SlideIndex).innerText = '–';
-        document.getElementById('slide' + SlideIndex).style="background-color: white;";
-        await sleep2(50*1000);
-        MakePng(SlideIndex);
-      }
-
       function onSuccessStart(Result) {
         Environment = Result;
         document.getElementById('Output').innerHTML = 
@@ -80,14 +73,16 @@
       }
 
       function onSlideSuccess(Result) {
+        SlidesToWait--;
         document.getElementById('slide' + Result).innerText = '+';
         document.getElementById('slide' + Result).style="background-color: Lime;";
         SlidesCompleted.push(Result);
-        SlidesToWait--;
         ShowStatus();
       }
 
       function onSlideFailure(error, Result) {
+        SlidesToWait--;
+        document.getElementById('slide' + Result).innerText = '–';
         var Msg = '' + error;
         if (
            (Msg.indexOf("DriveApp.") != -1)
@@ -98,16 +93,15 @@
             ||
            (Msg.indexOf("USER-100s") != -1)
         ) {
-          Restart(Result);
+          document.getElementById('slide' + Result).style="background-color: white;";
+          SlidesToStart.push(Result);
+          ProcessSlidesToStart();
         } else {
-          document.getElementById('slide' + Result).innerText = '–';
           document.getElementById('slide' + Result).style="background-color: red;";
-          SlidesToWait--;
-          var Index = SlidesWithErrors.indexOf(Result);
-          if (Index == -1) { SlidesWithErrors.push(Result); }
-          ShowStatus();
+          SlidesWithErrors.push(Result);
           document.getElementById('Errors').innerHTML = document.getElementById('Errors').innerHTML + '<br /><span class="error">Slide ' + Result + ': ' + error.message + '</span>';
         }
+        ShowStatus();
       }
 
       function TryProcessErrors() {
@@ -131,10 +125,8 @@
     <div id="Output">Запускаем, подождите пожалуйста...</div>
     <div id="Status"></div>
     <div id="Slides"></div>
-    <div id="Errors"></div>
-    <br/>
-    <br/>
     <center><input type="button" value="Закрыть" onclick="google.script.host.close()" /></center>
     <center><input type="button" value="Попробовать заново сохранить слайды с ошибками" onclick="TryProcessErrors()" /></center>
+    <div id="Errors"></div>
   </body>
 </html>
