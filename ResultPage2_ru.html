@@ -5,80 +5,87 @@
     <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
     <script>
 
+      var SlidesToStart = [];
       var SlidesToWait = [];
+      var SlidesCompleted = [];
       var SlidesWithErrors = [];
+      var SlidesToStartProcessingWorking = false;
       var Environment;
 
-      function MakePng(Index) {
-        document.getElementById('slide' + Index).innerText = '_';
-        document.getElementById('slide' + Index).style="background-color: yellow;"
-        google.script.run.withSuccessHandler(onSlideSuccess).withFailureHandler(onSlideFailure).withUserObject(Index).internalSavePNGs2_SaveSlide(
-          Index, Environment.PresentationName, Environment.PresentationID, Environment.Slides[Index], Environment.FolderName
-        );
-      }
-
-      function ProcessSlidesToWait() {
-        for (var i = 0; i < SlidesToWait.length; i++) {
-          MakePng(SlidesToWait[i])
-        }
-      }
-
       function ShowStatus() {
-        var s;
-        if (SlidesToWait.length == 0) {
-          s = 'Всё готово.';
+        var s = 'В очереди на запуск: ' + SlidesToStart.length + ',';
+        if (SlidesToStartProcessingWorking) {
+          s = s + '- запуски производятся.<br />';
         } else {
-          s = 'Осталось сохранить слайдов: ' + SlidesToWait.length + '.'
-          s = s + ' Готово ' + (Environment.Slides.length - SlidesToWait.length - SlidesWithErrors.length) + '.';
+          s = s + '- запуски не производятся.<br />';
         }
-        s = s + '<br />' + 'С ошибками: ' + SlidesWithErrors.length + '.';
-        
+        s = s + 'В списке обрабатываемых: ' + SlidesToWait.length + '.<br />';
+        s = s + 'В списке готовых: ' + SlidesCompleted.length + '.<br />';
+        s = s + 'В списке с неизвестными ошибками: ' + SlidesWithErrors.length + '.';
         document.getElementById('Status').innerHTML = s;
       }
 
-      function onSuccess(Result) {
-        Environment = Result;
-        document.getElementById('output').innerHTML = s;
-        var s = 
-          'Слайды будут сохранены в папку <br />' + 
-          '<a href="' + Environment.URL + '" target="_blank">' + Environment.FolderName + '</a>.<br />' + 
-          'Всего их ' + Environment.Slides.length + ' шт<br />' + 
-          '<div id="Status"></div> <font size="1">';
-        document.getElementById('output').innerHTML = s;
-        for (var i = 0; i < Environment.Slides.length; i++) {
-          s = s + ' [<span id="slide' + i +'">—</span>]';
-          SlidesToWait.push(i)
-        }
-        s = s + '</font>';
-        document.getElementById('output').innerHTML = s;
-        ShowStatus();
-        // запускаем собственно сохранения
-        ProcessSlidesToWait();
-      }
-
-      function onFailure(error) {
-        document.getElementById('output').innerHTML = error.message;
-      }
-
-      function onSlideSuccess(Result) {
-        document.getElementById('slide' + Result).innerText = '+';
-        document.getElementById('slide' + Result).style="background-color: Lime;"
-        SlidesToWait.pop(Result);
-        ShowStatus();
+      function MakePng(SlideIndex) {
+        SlidesToWait.push(SlideIndex);
+        document.getElementById('slide' + SlideIndex).innerText = '_';
+        document.getElementById('slide' + SlideIndex).style="background-color: yellow;"
+        google.script.run.withSuccessHandler(onSlideSuccess).withFailureHandler(onSlideFailure).withUserObject(SlideIndex).internalSavePNGs2_SaveSlide(
+          SlideIndex, Environment.PresentationName, Environment.PresentationID, Environment.Slides[SlideIndex], Environment.FolderName
+        );
       }
 
       function sleep2(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
       }
 
-
-      async function Restart(Index) {
-        document.getElementById('slide' + Index).innerText = '–';
-        document.getElementById('slide' + Index).style="background-color: white;"
-        await sleep2(50*1000);
-        MakePng(Index);
+      async function ProcessSlidesToStart() {
+        if (!SlidesToStartProcessingWorking) {
+          SlidesToStartProcessingWorking = true;
+          do 
+            await sleep2(1000);
+            MakePng(SlidesToStart.shift());
+          while (SlidesToStart.length > 0)
+          SlidesToStartProcessingWorking = false;
+        }
       }
 
+      async function Restart(SlideIndex) {
+        document.getElementById('slide' + SlideIndex).innerText = '–';
+        document.getElementById('slide' + SlideIndex).style="background-color: white;"
+        await sleep2(50*1000);
+        MakePng(SlideIndex);
+      }
+
+      function onSuccessStart(Result) {
+        Environment = Result;
+        document.getElementById('Output').innerHTML = 
+          'Слайды будут сохранены в папку <br />' + 
+          '<a href="' + Environment.URL + '" target="_blank">' + Environment.FolderName + '</a>.<br />' + 
+          'Всего их ' + Environment.Slides.length + ' шт<br />';
+        var s = '<font size="1">'
+        for (var i = 0; i < Environment.Slides.length; i++) {
+          s = s + ' [<span id="slide' + i +'">—</span>]';
+          SlidesToStart.push(i)
+        }
+        s = s + '</font>';
+        document.getElementById('Slides').innerHTML = s;
+        ShowStatus();
+        // запускаем собственно сохранения
+        ProcessSlidesToStart();
+      }
+
+      function onStartFailure(error) {
+        document.getElementById('output').innerHTML = error.message;
+      }
+
+      function onSlideSuccess(Result) {
+        document.getElementById('slide' + Result).innerText = '+';
+        document.getElementById('slide' + Result).style="background-color: Lime;"
+        SlidesCompleted.push(Result);
+        var Index = SlidesToWait.indexOf('Result');
+        if (Index != -1) { SlidesToWait = SlidesToWait.splice(Index, 1); }
+        ShowStatus();
+      }
 
       function onSlideFailure(error, Result) {
         var Msg = '' + error;
@@ -95,26 +102,37 @@
         } else {
           document.getElementById('slide' + Result).innerText = '—';
           document.getElementById('slide' + Result).style="background-color: red;"
-          SlidesToWait.pop(Result);
-          SlidesWithErrors.push(Result);
+          var Index = SlidesToWait.indexOf('Result');
+          if (Index != -1) { SlidesToWait = SlidesToWait.splice(Index, 1); }
+          Index = SlidesWithErrors.indexOf('Result');
+          if (Index = -1) { SlidesWithErrors.push(Result); }
           ShowStatus();
-          document.getElementById('output').innerHTML = document.getElementById('output').innerHTML + '<br /><span class="error">Slide ' + Result + ': ' + error.message + '</span>';
+          document.getElementById('Errors').innerHTML = document.getElementById('Errors').innerHTML + '<br /><span class="error">Slide ' + Result + ': ' + error.message + '</span>';
         }
       }
 
       function TryProcessErrors() {
-        document.getElementById('output').innerHTML = document.getElementById('output').innerHTML + '<br /><br /><hr /><br />';
-        SlidesToWait = SlidesWithErrors;
+        document.getElementById('Errors').innerHTML = document.getElementById('Errors').innerHTML + '<br /><br /><hr /><br />';
+        SlidesToStart = SlidesToWait.concat(SlidesWithErrors);
         SlidesWithErrors = [];
-        ProcessSlidesToWait();
+        ProcessSlidesToStart();
       }
+    
+      window.onload = function(e){ 
+      //  ShowStatus();
 
-      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).internalSavePNGs2_GetSlideList();
+      //  google.script.run.withSuccessHandler(onSuccessStart).withFailureHandler(onStartFailure).internalSavePNGs2_GetSlideList();
+
+      //  ShowStatus();
+      }
       
     </script>
   </head>
   <body>
-    <div id="output">Запускаем, подождите пожалуйста...</div>
+    <div id="Output">Запускаем, подождите пожалуйста...</div>
+    <div id="Status"></div>
+    <div id="Slides"></div>
+    <div id="Errors"></div>
     <br/>
     <br/>
     <center><input type="button" value="Закрыть" onclick="google.script.host.close()" /></center>
