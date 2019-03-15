@@ -42,9 +42,11 @@
           SlidesToStartProcessingWorking = true;
           do {
             await sleep2(1000);
-            MakePng(SlidesToStart.shift());
-            SlidesToWait++;
-            ShowStatus();
+            if (SlidesToWait < 10) {
+              MakePng(SlidesToStart.shift());
+              SlidesToWait++;
+              ShowStatus();
+            }
           } while (SlidesToStart.length > 0);
           SlidesToStartProcessingWorking = false;
         }
@@ -58,7 +60,7 @@
           'Total count: ' + Environment.Slides.length + '<br />';
         var s = '<font size="1">';
         for (var i = 0; i < Environment.Slides.length; i++) {
-          s = s + ' [<span id="slide' + i +'">–</span>]';
+          s = s + ' [<span id="slide' + i +'" title="' + i +'">–</span>]';
           SlidesToStart.push(i);
         }
         s = s + '</font>';
