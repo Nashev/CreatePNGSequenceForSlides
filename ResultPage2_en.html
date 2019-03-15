@@ -6,29 +6,29 @@
     <script>
 
       var SlidesToStart = [];
-      var SlidesToWait = [];
+      var SlidesToWait = 0;
       var SlidesCompleted = [];
       var SlidesWithErrors = [];
       var SlidesToStartProcessingWorking = false;
       var Environment;
 
       function ShowStatus() {
-        var s = 'In queue to start: ' + SlidesToStart.length + ',';
+        var s = 'In queue to start: ' + SlidesToStart.length + ', ';
         if (SlidesToStartProcessingWorking) {
-          s = s + '- starts performing.<br />';
+          s = s + 'starts performing.<br />';
         } else {
-          s = s + '- starts not performing.<br />';
+          s = s + 'starts not performing.<br />';
         }
-        s = s + 'In list of processing: ' + SlidesToWait.length + '.<br />';
+        s = s + 'In processing: ' + SlidesToWait.length + '.<br />';
         s = s + 'In list of ready: ' + SlidesCompleted.length + '.<br />';
         s = s + 'In list of unrecognisable errors: ' + SlidesWithErrors.length + '.';
         document.getElementById('Status').innerHTML = s;
       }
 
       function MakePng(SlideIndex) {
-        SlidesToWait.push(SlideIndex);
+        SlidesToWait++;
         document.getElementById('slide' + SlideIndex).innerText = '_';
-        document.getElementById('slide' + SlideIndex).style="background-color: yellow;"
+        document.getElementById('slide' + SlideIndex).style="background-color: yellow;";
         google.script.run.withSuccessHandler(onSlideSuccess).withFailureHandler(onSlideFailure).withUserObject(SlideIndex).internalSavePNGs2_SaveSlide(
           SlideIndex, Environment.PresentationName, Environment.PresentationID, Environment.Slides[SlideIndex], Environment.FolderName
         );
@@ -41,17 +41,18 @@
       async function ProcessSlidesToStart() {
         if (!SlidesToStartProcessingWorking) {
           SlidesToStartProcessingWorking = true;
-          do 
+          do {
             await sleep2(1000);
             MakePng(SlidesToStart.shift());
-          while (SlidesToStart.length > 0)
+            ShowStatus();
+          } while (SlidesToStart.length > 0);
           SlidesToStartProcessingWorking = false;
         }
       }
 
       async function Restart(SlideIndex) {
         document.getElementById('slide' + SlideIndex).innerText = '–';
-        document.getElementById('slide' + SlideIndex).style="background-color: white;"
+        document.getElementById('slide' + SlideIndex).style="background-color: white;";
         await sleep2(50*1000);
         MakePng(SlideIndex);
       }
@@ -61,11 +62,11 @@
         document.getElementById('Output').innerHTML = 
           'Slides will be stored at folder <br />' + 
           '<a href="' + Environment.URL + '" target="_blank">' + Environment.FolderName + '</a>.<br />' + 
-          'Total count: ' + Environment.Slides.length + ' slides<br />' + 
-        var s = '<font size="1">'
+          'Total count: ' + Environment.Slides.length + '<br />';
+        var s = '<font size="1">';
         for (var i = 0; i < Environment.Slides.length; i++) {
-          s = s + ' [<span id="slide' + i +'">—</span>]';
-          SlidesToStart.push(i)
+          s = s + ' [<span id="slide' + i +'">–</span>]';
+          SlidesToStart.push(i);
         }
         s = s + '</font>';
         document.getElementById('Slides').innerHTML = s;
@@ -80,32 +81,30 @@
 
       function onSlideSuccess(Result) {
         document.getElementById('slide' + Result).innerText = '+';
-        document.getElementById('slide' + Result).style="background-color: Lime;"
+        document.getElementById('slide' + Result).style="background-color: Lime;";
         SlidesCompleted.push(Result);
-        var Index = SlidesToWait.indexOf('Result');
-        if (Index != -1) { SlidesToWait = SlidesToWait.splice(Index, 1); }
+        SlidesToWait--;
         ShowStatus();
       }
 
       function onSlideFailure(error, Result) {
         var Msg = '' + error;
         if (
-           (Msg.indexOf("DriveApp.") !== -1)
+           (Msg.indexOf("DriveApp.") != -1)
             ||
-           (Msg.indexOf("Utilities.sleep") !== -1)
+           (Msg.indexOf("Utilities.sleep") != -1)
             ||
-           (Msg.indexOf("check quota") !== -1)
+           (Msg.indexOf("check quota") != -1)
             ||
-           (Msg.indexOf("USER-100s") !== -1)
+           (Msg.indexOf("USER-100s") != -1)
         ) {
           Restart(Result);
         } else {
-          document.getElementById('slide' + Result).innerText = '—';
-          document.getElementById('slide' + Result).style="background-color: red;"
-          var Index = SlidesToWait.indexOf('Result');
-          if (Index != -1) { SlidesToWait = SlidesToWait.splice(Index, 1); }
-          Index = SlidesWithErrors.indexOf('Result');
-          if (Index = -1) { SlidesWithErrors.push(Result); }
+          document.getElementById('slide' + Result).innerText = '–';
+          document.getElementById('slide' + Result).style="background-color: red;";
+          SlidesToWait--;
+          var Index = SlidesWithErrors.indexOf(Result);
+          if (Index == -1) { SlidesWithErrors.push(Result); }
           ShowStatus();
           document.getElementById('Errors').innerHTML = document.getElementById('Errors').innerHTML + '<br /><span class="error">Slide ' + Result + ': ' + error.message + '</span>';
         }
@@ -113,19 +112,19 @@
 
       function TryProcessErrors() {
         document.getElementById('Errors').innerHTML = document.getElementById('Errors').innerHTML + '<br /><br /><hr /><br />';
-        SlidesToStart = SlidesToWait.concat(SlidesWithErrors);
+        SlidesToStart = SlidesToStart.concat(SlidesWithErrors);
         SlidesWithErrors = [];
         ProcessSlidesToStart();
       }
     
       window.onload = function(e){ 
-      //  ShowStatus();
+        ShowStatus();
 
-      //  google.script.run.withSuccessHandler(onSuccessStart).withFailureHandler(onStartFailure).internalSavePNGs2_GetSlideList();
+        google.script.run.withSuccessHandler(onSuccessStart).withFailureHandler(onStartFailure).internalSavePNGs2_GetSlideList();
 
-      //  ShowStatus();
-      }
-      
+        ShowStatus();
+      };
+
     </script>
   </head>
   <body>
@@ -139,5 +138,3 @@
     <center><input type="button" value="Retry get slides with errors" onclick="TryProcessErrors()" /></center>
   </body>
 </html>
-
-
