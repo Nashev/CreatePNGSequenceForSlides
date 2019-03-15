@@ -26,7 +26,6 @@
       }
 
       function MakePng(SlideIndex) {
-        SlidesToWait++;
         document.getElementById('slide' + SlideIndex).innerText = '_';
         document.getElementById('slide' + SlideIndex).style="background-color: yellow;";
         google.script.run.withSuccessHandler(onSlideSuccess).withFailureHandler(onSlideFailure).withUserObject(SlideIndex).internalSavePNGs2_SaveSlide(
@@ -44,6 +43,7 @@
           do {
             await sleep2(1000);
             MakePng(SlidesToStart.shift());
+            SlidesToWait++;
             ShowStatus();
           } while (SlidesToStart.length > 0);
           SlidesToStartProcessingWorking = false;
